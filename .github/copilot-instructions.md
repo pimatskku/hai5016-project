@@ -40,13 +40,13 @@ source .venv/bin/activate
 | Notebooks | Jupyter Notebook |
 | Package manager | UV |
 | Version control | Git |
-| Web scraping | `requests`, `BeautifulSoup4` |
+| Web scraping | `httpx`, `BeautifulSoup4` |
 | Data manipulation | `pandas` |
-| LLM APIs | OpenAI-compatible (Azure OpenAI, Google Gemini) |
-| LLM orchestration | LangChain (keep chains simple) |
-| Database | Supabase (PostgreSQL + `pgvector`) |
-| Frontend / UI | Streamlit |
-| Deployment | Streamlit Community Cloud, Azure, or Google Cloud |
+| LLM APIs | OpenAI-compatible (Azure OpenAI credit) |
+| LLM orchestration | LangChain preferred for open-source and simplicity  |
+| Database | Supabase or any other PostgreSQL-based solution |
+| Frontend / UI | Streamlit suggested |
+| Deployment | Not yet determined but there is Azure and Google Cloud student credit  |
 
 Do **not** suggest alternatives to these unless the student explicitly asks.
 
@@ -59,10 +59,10 @@ This is a **cheap meals finder app** for foreign students in Seoul. The app:
 1. **Scrapes** menu pages from university cafeterias and local markets
 2. **Extracts** structured data (meal name, price, location, hours) using LLM APIs
 3. **Stores** data in Supabase (SQL for structured data, pgvector for semantic search)
-4. **Serves** a chatbot UI via Streamlit where students can ask natural-language queries like:
+4. **Serves** an UI via Streamlit where students can ask natural-language queries like:
    - *"What are cheap vegetarian meals near my campus?"*
    - *"Is today a good day to try bibimbap?"*
-5. **Enriches** responses with:
+5. **Enriches** responses ideas:
    - Price in KRW and USD
    - Weather-based meal suggestions (e.g., warm soups on cold days)
    - How frequently a meal appears (novelty/rarity signal)
@@ -72,8 +72,8 @@ This is a **cheap meals finder app** for foreign students in Seoul. The app:
    - Generate personalised meal suggestion reports based on each user's stored preferences, such as dietary restrictions (vegetarian, halal, etc.), home country and cuisine familiarity, and budget
    - Send or store these reports so users get recommendations waiting for them when they open the app
 
-The app is therefore triggered in **two ways**:
-- **By the user** — through the Streamlit chatbot UI
+The app is therefore triggered in at least **two ways**:
+- **By the user** — through the Streamlit UI for example asking like a chatbot
 - **By a scheduler** — through GitHub Actions (or a similar cron system) running Python scripts directly
 
 The AI agent should **check the database first** before scraping. Only scrape if today's data isn't cached.
@@ -85,14 +85,14 @@ The AI agent should **check the database first** before scraping. Only scrape if
 ```
 [Web Sources] → [Scraper] → [LLM Extractor] → [JSON] → [Supabase DB]
                                                               ↓
-                                              [Streamlit Chatbot UI]
+                                              [Streamlit Agent UI]
                                                 ↑
                                          [LangChain Agent]
                                          (DB lookup first,
                                           scrape if missing)
 ```
 
-### Chatbot components to implement:
+### Agent components to implement:
 - Language model (Azure OpenAI or Google Gemini)
 - Prompt with context (today's meals, location, weather)
 - Conversation history / memory
