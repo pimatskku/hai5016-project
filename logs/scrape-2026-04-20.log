@@ -1,0 +1,19 @@
+2026-04-20 15:52:13.781 | INFO     | __main__:main:331 - Logging to logs\scrape-2026-04-20.log
+2026-04-20 15:52:13.909 | INFO     | __main__:main:358 - Output file: results\menus-2026-04-20.jsonl
+2026-04-20 15:52:13.909 | INFO     | __main__:main:359 - Sources to process: 7
+2026-04-20 15:52:13.995 | INFO     | __main__:main:371 - [1/7] Processing SKKU | https://www.skku.edu/skku/campus/support/welfare_11.do?mode=info&srCategory=L&conspaceCd=10201030&srResId=1&srShowTime=W
+2026-04-20 15:52:37.738 | INFO     | __main__:main:419 - Completed URL with 55 valid menu items written: https://www.skku.edu/skku/campus/support/welfare_11.do?mode=info&srCategory=L&conspaceCd=10201030&srResId=1&srShowTime=W
+2026-04-20 15:52:37.738 | INFO     | __main__:main:371 - [2/7] Processing SKKU | https://www.skku.edu/skku/campus/support/welfare_11.do?mode=info&srCategory=D&conspaceCd=10201030&srResId=1&srShowTime=W
+2026-04-20 15:52:38.708 | INFO     | __main__:main:419 - Completed URL with 0 valid menu items written: https://www.skku.edu/skku/campus/support/welfare_11.do?mode=info&srCategory=D&conspaceCd=10201030&srResId=1&srShowTime=W
+2026-04-20 15:52:38.710 | INFO     | __main__:main:371 - [3/7] Processing SKKU | https://www.skku.edu/skku/campus/support/welfare_11.do?mode=info&srCategory=B&conspaceCd=10201030&srResId=1&srShowTime=W
+2026-04-20 15:52:39.545 | INFO     | __main__:main:419 - Completed URL with 0 valid menu items written: https://www.skku.edu/skku/campus/support/welfare_11.do?mode=info&srCategory=B&conspaceCd=10201030&srResId=1&srShowTime=W
+2026-04-20 15:52:39.545 | INFO     | __main__:main:371 - [4/7] Processing Korea University | https://www.korea.ac.kr/ko/504/subview.do
+2026-04-20 15:52:48.177 | INFO     | __main__:main:419 - Completed URL with 15 valid menu items written: https://www.korea.ac.kr/ko/504/subview.do
+2026-04-20 15:52:48.177 | INFO     | __main__:main:371 - [5/7] Processing Korea University | https://www.korea.ac.kr/ko/505/subview.do
+2026-04-20 15:53:11.534 | INFO     | __main__:main:419 - Completed URL with 52 valid menu items written: https://www.korea.ac.kr/ko/505/subview.do
+2026-04-20 15:53:11.536 | INFO     | __main__:main:371 - [6/7] Processing  | https://snudorm.snu.ac.kr/foodmenu/
+2026-04-20 15:53:19.931 | INFO     | __main__:main:419 - Completed URL with 9 valid menu items written: https://snudorm.snu.ac.kr/foodmenu/
+2026-04-20 15:53:19.931 | INFO     | __main__:main:371 - [7/7] Processing  | https://snuco.snu.ac.kr/foodmenu/
+2026-04-20 15:54:30.192 | INFO     | __main__:main:419 - Completed URL with 150 valid menu items written: https://snuco.snu.ac.kr/foodmenu/
+2026-04-20 15:54:30.196 | INFO     | __main__:main:423 - Done. Total menu items written: 281
+2026-04-20 15:54:30.204 | INFO     | __main__:main:424 - Saved JSONL to: results\menus-2026-04-20.jsonl
