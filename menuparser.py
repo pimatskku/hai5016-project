@@ -1,8 +1,10 @@
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime
 from html import unescape
 from pathlib import Path
+import time
 
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
@@ -17,6 +19,9 @@ HTML_DIR = PROJECT_ROOT / "html"
 LOG_DIR = PROJECT_ROOT / "logs"
 RESULTS_DIR = PROJECT_ROOT / "results"
 MAX_HTML_TEXT_CHARS = 20000
+CHUNK_CHAR_LIMIT = 6000
+MODEL_TIMEOUT_SECONDS = 45
+MODEL_MAX_RETRIES = 2
 
 
 def setup_logging() -> Path:
@@ -116,6 +121,7 @@ def load_scraped_html(file_path: Path) -> tuple[str, str]:
     text = pre_tag.get_text("\n", strip=True) if pre_tag else ""
 
     if len(text) > MAX_HTML_TEXT_CHARS:
+        logger.info(f"Truncating long page text to {MAX_HTML_TEXT_CHARS} characters: {file_path.name}")
         text = text[:MAX_HTML_TEXT_CHARS]
 
     return url, text
@@ -129,10 +135,40 @@ def safe_parse_json(message_text: str) -> list[dict]:
         if cleaned.startswith("json"):
             cleaned = cleaned[4:].strip()
 
-    parsed = json.loads(cleaned)
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError:
+        logger.warning("Model response was not valid JSON. Skipping this chunk.")
+        return []
+
     if not isinstance(parsed, list):
         return []
     return [item for item in parsed if isinstance(item, dict)]
+
+
+def split_text_into_chunks(page_text: str, chunk_char_limit: int) -> list[str]:
+    # Split long text into line-based chunks so each model request stays manageable.
+    if len(page_text) <= chunk_char_limit:
+        return [page_text]
+
+    chunks: list[str] = []
+    current_lines: list[str] = []
+    current_size = 0
+
+    for line in page_text.splitlines():
+        line_size = len(line) + 1
+        if current_lines and current_size + line_size > chunk_char_limit:
+            chunks.append("\n".join(current_lines))
+            current_lines = []
+            current_size = 0
+
+        current_lines.append(line)
+        current_size += line_size
+
+    if current_lines:
+        chunks.append("\n".join(current_lines))
+
+    return chunks
 
 
 def normalize_meal_type(meal_type: str) -> str:
@@ -222,6 +258,53 @@ Scraped Text:
     return safe_parse_json(content)
 
 
+def extract_menu_with_retries(client: OpenAI, model_name: str, source_url: str, chunk_text: str) -> list[dict]:
+    # Retry model calls for transient API issues and continue even if one attempt fails.
+    for attempt in range(1, MODEL_MAX_RETRIES + 1):
+        executor = ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(extract_menu_with_ai, client, model_name, source_url, chunk_text)
+
+        try:
+            result = future.result(timeout=MODEL_TIMEOUT_SECONDS)
+            executor.shutdown(wait=False, cancel_futures=True)
+            return result
+        except FutureTimeoutError:
+            logger.warning(
+                f"Model call timed out after {MODEL_TIMEOUT_SECONDS}s "
+                f"(attempt {attempt}/{MODEL_MAX_RETRIES}) for {source_url}"
+            )
+        except Exception as error:
+            logger.warning(f"Model call failed (attempt {attempt}/{MODEL_MAX_RETRIES}) for {source_url}: {error}")
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+
+        if attempt < MODEL_MAX_RETRIES:
+            time.sleep(2)
+
+    return []
+
+
+def deduplicate_items(items: list[dict]) -> list[dict]:
+    # Remove repeated menu records gathered across chunks from the same page.
+    seen_keys: set[tuple[str, str, str, str]] = set()
+    unique_items: list[dict] = []
+
+    for item in items:
+        key = (
+            str(item.get("menu_date", "")).strip(),
+            str(item.get("meal_type", "")).strip().lower(),
+            str(item.get("meal_name", "")).strip(),
+            str(item.get("price_krw", "")).strip(),
+        )
+        if key in seen_keys:
+            continue
+
+        seen_keys.add(key)
+        unique_items.append(item)
+
+    return unique_items
+
+
 def append_jsonl(file_path: Path, item: dict) -> None:
     # Write one JSON record per line as soon as each valid item is available.
     with file_path.open("a", encoding="utf-8") as output_file:
@@ -231,7 +314,8 @@ def append_jsonl(file_path: Path, item: dict) -> None:
 def run_parser() -> Path:
     # Execute the full parsing pipeline from scraped HTML files to JSONL output.
     endpoint, deployment, api_key = load_azure_settings()
-    client = OpenAI(base_url=endpoint, api_key=api_key)
+    # Configure timeout directly on the client so each API call cannot hang forever.
+    client = OpenAI(base_url=endpoint, api_key=api_key, timeout=MODEL_TIMEOUT_SECONDS)
     metadata_by_url = load_metadata_by_url()
     html_files = sorted(HTML_DIR.glob("*.html"))
 
@@ -254,8 +338,17 @@ def run_parser() -> Path:
             university = meta.get("university", "")
             restaurant_name = meta.get("restaurant_name", "")
 
-            extracted_items = extract_menu_with_ai(client, deployment, source_url, page_text)
-            logger.info(f"Model returned {len(extracted_items)} raw items for {source_url}")
+            text_chunks = split_text_into_chunks(page_text, CHUNK_CHAR_LIMIT)
+            logger.info(f"Split page into {len(text_chunks)} chunk(s): {source_url}")
+
+            extracted_items: list[dict] = []
+            for chunk_index, chunk_text in enumerate(text_chunks, start=1):
+                logger.info(f"Extracting chunk {chunk_index}/{len(text_chunks)} for {html_file.name}")
+                chunk_items = extract_menu_with_retries(client, deployment, source_url, chunk_text)
+                extracted_items.extend(chunk_items)
+
+            extracted_items = deduplicate_items(extracted_items)
+            logger.info(f"Model returned {len(extracted_items)} unique raw items for {source_url}")
 
             valid_count = 0
             for extracted_item in extracted_items:
