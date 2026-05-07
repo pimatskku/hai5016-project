@@ -3,7 +3,7 @@
 ## Who are the students?
 Students in this class are **not professional developers**. They have basic knowledge of:
 - Python, JSON, Jupyter Notebook
-- Visual Studio Code (on Windows)
+- Visual Studio Code (using a Dev Container)
 - UV for package management (`uv add`, not `pip install`)
 - Git basics
 
@@ -13,19 +13,15 @@ Keep all suggestions simple, readable, and well-commented. Avoid advanced patter
 
 ## Project Environment
 
-- **Project root**: `~/Developer/hai5016-project`
-- **OS**: Windows 11
+- **Project root**: `/workspaces/hai5016-project`
+- **Runtime environment**: VS Code Dev Container (Debian/Linux)
 - **Package manager**: UV only — always use `uv add <package>`, never `pip install`
 - **Virtual environment**: `.venv` (managed by UV)
 
 ### ⚠️ Before running any terminal command:
 Always check if the `.venv` is activated. If not, remind the student to activate it first:
-```powershell
-# Windows (PowerShell)
-.\.venv\Scripts\Activate.ps1
-```
 ```bash
-# macOS/Linux
+# Dev Container (Linux shell)
 source .venv/bin/activate
 ```
 
