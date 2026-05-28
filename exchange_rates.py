@@ -1,20 +1,46 @@
 import json
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 import urllib.error
 import urllib.request
 
 from dotenv import load_dotenv
+from loguru import logger
 
 # Load environment variables so this module also works in scripts and schedulers.
 load_dotenv()
 
 
+def _configure_logger() -> None:
+    """Configure Loguru to write both console and file logs."""
+    logs_dir = Path("logs")
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.remove()
+    logger.add(
+        logs_dir / "exchange_rates.log",
+        rotation="1 MB",
+        retention="14 days",
+        level="INFO",
+        enqueue=True,
+        format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
+    )
+    logger.add(
+        lambda message: print(message, end=""),
+        level="INFO",
+        format="{time:HH:mm:ss} | {level} | {message}",
+    )
+
+
 def _fetch_exchange_rate_payload() -> dict:
     """Fetch raw exchange-rate API payload for KRW base."""
+    logger.info("Fetching latest KRW exchange-rate payload")
+
     # Read the API key from the .env file.
     api_key = os.getenv("EXCHANGE_RATE_API_KEY")
     if not api_key:
+        logger.error("Missing EXCHANGE_RATE_API_KEY in .env")
         raise RuntimeError("Missing EXCHANGE_RATE_API_KEY in .env")
 
     # Ask the exchange-rate service for all rates using KRW as the base currency.
@@ -28,12 +54,16 @@ def _fetch_exchange_rate_payload() -> dict:
         with urllib.request.urlopen(request, timeout=30) as response:
             data = json.loads(response.read().decode("utf-8"))
     except urllib.error.URLError as error:
+        logger.exception("Failed while calling exchange-rate API")
         raise RuntimeError(f"Failed to fetch exchange rates: {error}") from error
 
     # Surface API-level failures clearly.
     if data.get("result") != "success":
         error_type = data.get("error-type", "unknown_error")
+        logger.error(f"ExchangeRate API returned failure: {error_type}")
         raise RuntimeError(f"ExchangeRate API error: {error_type}")
+
+    logger.info("Exchange-rate payload fetched successfully")
 
     return data
 
@@ -52,6 +82,8 @@ def get_krw_conversions() -> dict[str, float]:
 
 def save_daily_rates_to_supabase() -> int:
     """Fetch KRW rates and upsert one Supabase row per quote currency for today."""
+    logger.info("Preparing daily FX upsert")
+
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_KEY")
     supabase_connection_string = os.getenv("SUPABASE_CONNECTION_STRING")
@@ -61,6 +93,7 @@ def save_daily_rates_to_supabase() -> int:
     base_code = str(data.get("base_code", "KRW")).upper()
 
     if not rates:
+        logger.error("ExchangeRate API returned no conversion rates")
         raise RuntimeError("ExchangeRate API returned no conversion rates")
 
     now_utc = datetime.now(timezone.utc)
@@ -82,8 +115,11 @@ def save_daily_rates_to_supabase() -> int:
             }
         )
 
+    logger.info(f"Built {len(records)} FX rows for upsert")
+
     # Try PostgREST first when URL and key are available.
     if supabase_url and supabase_key:
+        logger.info("Using Supabase PostgREST upsert path")
         return _save_rows_via_postgrest(
             records=records,
             supabase_url=supabase_url,
@@ -92,6 +128,7 @@ def save_daily_rates_to_supabase() -> int:
 
     # Fallback to direct PostgreSQL connection if provided.
     if supabase_connection_string:
+        logger.info("Using Supabase PostgreSQL upsert path")
         return _save_rows_via_postgres(
             records=records,
             connection_string=supabase_connection_string,
@@ -109,6 +146,7 @@ def _save_rows_via_postgrest(
     supabase_key: str,
 ) -> int:
     """Upsert rows using Supabase PostgREST API."""
+    logger.info("Sending PostgREST upsert request")
 
     endpoint = (
         f"{supabase_url.rstrip('/')}/rest/v1/fx_rates_daily_cache"
@@ -132,11 +170,15 @@ def _save_rows_via_postgrest(
             pass
     except urllib.error.HTTPError as error:
         error_body = error.read().decode("utf-8", errors="replace")
+        logger.error(f"PostgREST upsert failed with HTTP {error.code}: {error_body}")
         raise RuntimeError(
             f"Failed to upsert FX rows into Supabase: HTTP {error.code} - {error_body}"
         ) from error
     except urllib.error.URLError as error:
+        logger.exception("Failed to connect to Supabase PostgREST endpoint")
         raise RuntimeError(f"Failed to connect to Supabase: {error}") from error
+
+    logger.info(f"PostgREST upsert completed for {len(records)} rows")
 
     return len(records)
 
@@ -145,6 +187,8 @@ def _save_rows_via_postgres(records: list[dict], connection_string: str) -> int:
     """Upsert rows using direct PostgreSQL connection."""
     import psycopg
     from psycopg.types.json import Jsonb
+
+    logger.info("Starting PostgreSQL upsert transaction")
 
     sql = """
     INSERT INTO public.fx_rates_daily_cache (
@@ -193,7 +237,10 @@ def _save_rows_via_postgres(records: list[dict], connection_string: str) -> int:
                 cursor.executemany(sql, payload_rows)
             connection.commit()
     except Exception as error:
+        logger.exception("PostgreSQL upsert failed")
         raise RuntimeError(f"Failed to upsert FX rows into Supabase PostgreSQL: {error}") from error
+
+    logger.info(f"PostgreSQL upsert completed for {len(records)} rows")
 
     return len(records)
 
@@ -210,5 +257,7 @@ def get_fx(currency: str) -> float:
 
 
 if __name__ == "__main__":
+    _configure_logger()
+    logger.info("exchange_rates.py started")
     upserted_rows = save_daily_rates_to_supabase()
-    print(f"Saved {upserted_rows} FX rows to Supabase.")
+    logger.info(f"Saved {upserted_rows} FX rows to Supabase.")
