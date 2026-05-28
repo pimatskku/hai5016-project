@@ -71,34 +71,22 @@ def _fetch_exchange_rate_payload() -> dict:
 
 def get_krw_conversions() -> dict[str, float]:
     """Return KRW conversion rates, using today's DB cache before scraping."""
-    today = datetime.now(timezone.utc).date().isoformat()
-    logger.info(f"Starting KRW conversion lookup for UTC date {today}")
-    logger.info("Step 1/4: Checking Supabase daily cache")
-
     cached_rates = _get_cached_krw_conversions_from_supabase()
     if cached_rates:
-        logger.info(
-            "Step 2/4: Cache hit. "
-            f"Loaded {len(cached_rates)} KRW conversion rows from Supabase"
-        )
-        logger.info("Step 4/4: Returning cached KRW conversion dictionary")
+        logger.info(f"Using cached FX rates from Supabase ({len(cached_rates)} rows)")
         return cached_rates
 
-    logger.info("Step 2/4: Cache miss. No daily KRW rows found in Supabase")
-    logger.info("Step 3/4: Fetching fresh KRW rates from exchange-rate API")
+    logger.info("No daily FX cache found in Supabase, fetching fresh rates")
     data = _fetch_exchange_rate_payload()
 
     rates = data.get("conversion_rates", {})
 
     if not rates:
-        logger.error("Fresh scrape returned empty conversion_rates payload")
         raise RuntimeError("ExchangeRate API returned no conversion rates")
 
     # Save fresh scrape so future calls can read from cache.
     records = _build_daily_fx_records(data)
-    saved_rows = _save_rows_with_available_supabase_method(records)
-    logger.info(f"Step 3/4: Saved {saved_rows} fresh KRW conversion rows to Supabase")
-    logger.info("Step 4/4: Returning fresh KRW conversion dictionary")
+    _save_rows_with_available_supabase_method(records)
 
     return {code: float(value) for code, value in rates.items()}
 
@@ -178,7 +166,6 @@ def _get_cached_krw_conversions_from_supabase() -> dict[str, float]:
     today = datetime.now(timezone.utc).date().isoformat()
 
     if supabase_url and supabase_key:
-        logger.info("Cache lookup credentials: using SUPABASE_URL + SUPABASE_KEY")
         return _get_cached_rates_via_postgrest(
             supabase_url=supabase_url,
             supabase_key=supabase_key,
@@ -186,7 +173,6 @@ def _get_cached_krw_conversions_from_supabase() -> dict[str, float]:
         )
 
     if supabase_connection_string:
-        logger.info("Cache lookup credentials: using SUPABASE_CONNECTION_STRING")
         return _get_cached_rates_via_postgres(
             connection_string=supabase_connection_string,
             cache_date=today,
@@ -202,7 +188,7 @@ def _get_cached_rates_via_postgrest(
     cache_date: str,
 ) -> dict[str, float]:
     """Read cached rates using Supabase PostgREST API."""
-    logger.info(f"Checking Supabase cache via PostgREST for date {cache_date}")
+    logger.info("Checking Supabase cache via PostgREST")
 
     query = urllib.parse.urlencode(
         {
@@ -237,7 +223,6 @@ def _get_cached_rates_via_postgrest(
         for row in rows
         if row.get("quote_code") and row.get("rate") is not None
     }
-    logger.info(f"PostgREST cache lookup returned {len(cached_rates)} rows")
     return cached_rates
 
 
@@ -245,7 +230,7 @@ def _get_cached_rates_via_postgres(connection_string: str, cache_date: str) -> d
     """Read cached rates using direct PostgreSQL connection."""
     import psycopg
 
-    logger.info(f"Checking Supabase cache via PostgreSQL for date {cache_date}")
+    logger.info("Checking Supabase cache via PostgreSQL")
     sql = """
     SELECT quote_code, rate
     FROM public.fx_rates_daily_cache
@@ -264,7 +249,6 @@ def _get_cached_rates_via_postgres(connection_string: str, cache_date: str) -> d
         return {}
 
     cached_rates = {str(quote_code).upper(): float(rate) for quote_code, rate in rows}
-    logger.info(f"PostgreSQL cache lookup returned {len(cached_rates)} rows")
     return cached_rates
 
 
