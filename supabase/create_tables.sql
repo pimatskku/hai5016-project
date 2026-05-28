@@ -48,7 +48,7 @@ CREATE TABLE public.scraped_html_snapshots (
   last_modified text,
   html_raw text NOT NULL,
   html_sha256 text NOT NULL,
-  html_size_bytes integer DEFAULT octet_length(html_raw),
+  html_size_bytes integer,
   is_changed boolean NOT NULL DEFAULT true,
   previous_snapshot_id uuid,
   change_reason text,
