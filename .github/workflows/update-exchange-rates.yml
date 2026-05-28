@@ -17,6 +17,8 @@ jobs:
   update-rates:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Reference the GitHub Environment where the secrets are stored.
+    environment: EXCHANGE_RATE_API_KEY
 
     steps:
       - name: Check out repository
