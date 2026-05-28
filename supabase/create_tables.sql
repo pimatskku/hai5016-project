@@ -19,21 +19,15 @@ CREATE TABLE public.fx_rates_daily_cache (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   provider text NOT NULL DEFAULT 'exchangerate-api'::text,
   base_code text NOT NULL,
+  quote_code text NOT NULL,
+  rate double precision NOT NULL,
   cache_date date NOT NULL DEFAULT ((now() AT TIME ZONE 'utc'::text))::date,
   fetched_at timestamp with time zone NOT NULL DEFAULT now(),
-  result text NOT NULL,
-  documentation text,
-  terms_of_use text,
-  time_last_update_unix bigint,
-  time_last_update_utc text,
-  time_next_update_unix bigint,
-  time_next_update_utc text,
-  conversion_rates jsonb NOT NULL,
-  rates_count integer NOT NULL,
   raw_response jsonb NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT fx_rates_daily_cache_pkey PRIMARY KEY (id)
+  CONSTRAINT fx_rates_daily_cache_pkey PRIMARY KEY (id),
+  CONSTRAINT uq_fx_rates_daily_cache_provider_base_quote_date UNIQUE (provider, base_code, quote_code, cache_date)
 );
 CREATE TABLE public.scraped_html_snapshots (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
