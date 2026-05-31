@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Reference the GitHub Environment where the secrets are stored.
-    environment: EXCHANGE_RATE_API_KEY
+    environment: prod-dev
 
     steps:
       - name: Check out repository
@@ -38,6 +38,6 @@ jobs:
 
       - name: Fetch and save latest exchange rates
         env:
-          EXCHANGE_RATE_API_KEY: ${{ secrets.EXCHANGE_RATE_API_KEY }}
+          prod-dev: ${{ secrets.prod-dev }}
           SUPABASE_CONNECTION_STRING: ${{ secrets.SUPABASE_CONNECTION_STRING }}
         run: uv run python exchangerates.py
