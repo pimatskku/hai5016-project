@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # Reference the GitHub Environment where the SUPABASE_CONNECTION_STRING secret is stored.
-    environment: EXCHANGE_RATE_API_KEY
+    environment: dev-prod
 
     steps:
       - name: Check out repository
