@@ -13,21 +13,21 @@ CREATE TABLE public.campus_menu_sources (
   last_scraped_at timestamp with time zone,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  content_div_selector text,
   CONSTRAINT campus_menu_sources_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.fx_rates_daily_cache (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   provider text NOT NULL DEFAULT 'exchangerate-api'::text,
   base_code text NOT NULL,
-  quote_code text NOT NULL,
-  rate double precision NOT NULL,
   cache_date date NOT NULL DEFAULT ((now() AT TIME ZONE 'utc'::text))::date,
   fetched_at timestamp with time zone NOT NULL DEFAULT now(),
   raw_response jsonb NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT fx_rates_daily_cache_pkey PRIMARY KEY (id),
-  CONSTRAINT uq_fx_rates_daily_cache_provider_base_quote_date UNIQUE (provider, base_code, quote_code, cache_date)
+  quote_code text NOT NULL,
+  rate double precision NOT NULL,
+  CONSTRAINT fx_rates_daily_cache_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.scraped_html_snapshots (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
