@@ -1,7 +1,7 @@
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
-CREATE TABLE public.campus_menu_sources (
+CREATE TABLE IF NOT EXISTS public.campus_menu_sources (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   university_name text NOT NULL,
   city text,
@@ -16,7 +16,7 @@ CREATE TABLE public.campus_menu_sources (
   content_div_selector text,
   CONSTRAINT campus_menu_sources_pkey PRIMARY KEY (id)
 );
-CREATE TABLE public.fx_rates_daily_cache (
+CREATE TABLE IF NOT EXISTS public.fx_rates_daily_cache (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   provider text NOT NULL DEFAULT 'exchangerate-api'::text,
   base_code text NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE public.fx_rates_daily_cache (
   rate double precision NOT NULL,
   CONSTRAINT fx_rates_daily_cache_pkey PRIMARY KEY (id)
 );
-CREATE TABLE public.scraped_html_snapshots (
+CREATE TABLE IF NOT EXISTS public.scraped_html_snapshots (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   source_id uuid NOT NULL,
   source_url text NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE public.scraped_html_snapshots (
   CONSTRAINT scraped_html_snapshots_source_id_fkey FOREIGN KEY (source_id) REFERENCES public.campus_menu_sources(id),
   CONSTRAINT scraped_html_snapshots_previous_snapshot_id_fkey FOREIGN KEY (previous_snapshot_id) REFERENCES public.scraped_html_snapshots(id)
 );
-CREATE TABLE public.user (
+CREATE TABLE IF NOT EXISTS public.user (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   email character varying NOT NULL UNIQUE,
   password_hash character varying,
