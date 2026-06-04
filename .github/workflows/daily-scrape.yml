@@ -2,8 +2,8 @@ name: Daily menu scrape
 
 on:
   schedule:
-    # 21:00 UTC = 06:00 Asia/Seoul the next day — runs every morning in Seoul time.
-    - cron: "0 21 * * *"
+    # 22:00 UTC = 07:00 Asia/Seoul the next day — runs every morning in Seoul time.
+    - cron: "0 22 * * *"
   # Allow triggering this manually from the GitHub Actions tab (useful for testing).
   workflow_dispatch:
 
